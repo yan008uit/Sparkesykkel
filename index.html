@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+    <meta charset="utf-8">
+    <title>Oblig 2</title>
+    <link rel="stylesheet" href="/css/stylesheet.css" type="text/css">
+    <script src="lib/cuon-matrix.js"></script>
+    <script src="lib/gl-matrix.js"></script>
+</head>
+
+<body>
+<div style="top:0px; left:15px; width:100%; text-align:left; color:black;" class="ui">
+    <h2>WebGL Sparkesykkel</h2>
+    FPS: <span id="fps">--</span><br>
+    WASD Kamerastyring<br>
+    VB Zoom<br>
+    F/G Hjulrotasjon<br>
+    ←/→ Styre<br>
+</div>
+
+<!-- SHADERS -->
+<script id="base-vertex-shader" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aVertexNormal;
+    attribute vec2 aTextureCoord;
+
+    uniform mat4 uModelMatrix;
+    uniform mat4 uViewMatrix;
+    uniform mat4 uProjectionMatrix;
+    uniform mat4 uNormalMatrix;
+
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    varying vec2 vTextureCoord;
+
+    void main(void) {
+        vNormal = mat3(uNormalMatrix) * aVertexNormal;
+        vPosition = vec3(uModelMatrix * vec4(aVertexPosition, 1.0));
+        vTextureCoord = aTextureCoord;
+
+        gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.0);
+    }
+</script>
+
+<script id="base-fragment-shader" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform vec3 uAmbientLight;
+    uniform vec3 uDirectionalLight;
+    uniform vec3 uDirectionalDir;
+    uniform vec3 uPointLightPos;
+    uniform vec3 uPointLightColor;
+
+    uniform sampler2D uSampler;
+    uniform bool uUseTexture;
+    uniform vec4 uFragmentColor;
+
+    varying vec3 vNormal;
+    varying vec3 vPosition;
+    varying vec2 vTextureCoord;
+
+    void main(void) {
+        // Normalize normal
+        vec3 normal = normalize(vNormal);
+
+        // Directional light
+        vec3 dirLight = normalize(-uDirectionalDir);
+        float diff = max(dot(normal, dirLight), 0.0);
+        vec3 directional = diff * uDirectionalLight;
+
+        // Point light
+        vec3 lightDir = normalize(uPointLightPos - vPosition);
+        float pointDiff = max(dot(normal, lightDir), 0.0);
+        vec3 pointLight = pointDiff * uPointLightColor;
+
+        // Combine lighting
+        vec3 light = uAmbientLight + directional + pointLight;
+
+        // Base color
+        vec4 baseColor = uUseTexture ? texture2D(uSampler, vTextureCoord) : uFragmentColor;
+
+        gl_FragColor = vec4(baseColor.rgb * light, baseColor.a);
+    }
+</script>
+
+<script type="module">
+    'use strict';
+    import {main} from "./Scooter.js";
+    main();
+</script>
+</body>
+</html>
