@@ -30,7 +30,7 @@ export function main() {
             currentlyPressedKeys: [],
             stack: new Stack(),
             lastTime: 0,
-            fpsInfo: { frameCount: 0, lastTimeStamp: 0 },
+            fpsInfo: { frameCount: 0, lastTimeStamp: performance.now(), fps: 0 },
             animationInfo: { wheelRotation: 0, steeringAngle: 0 },
             frontWheel: new Wheels({ gl }, 32, textures.wheel),
             backWheel: new Wheels({ gl }, 32, textures.wheel),
@@ -103,12 +103,21 @@ function initShaders(gl) {
     };
 }
 
-// Animation Loop
 function animate(currentTime, renderInfo, camera) {
     window.requestAnimationFrame((time)=>animate(time,renderInfo,camera));
     let elapsed = 0;
     if(renderInfo.lastTime!==0) elapsed=(currentTime-renderInfo.lastTime)/1000;
     renderInfo.lastTime=currentTime;
+
+    renderInfo.fpsInfo.frameCount++;
+    if(currentTime - renderInfo.fpsInfo.lastTimeStamp >= 1000){
+        renderInfo.fpsInfo.fps = renderInfo.fpsInfo.frameCount;
+        renderInfo.fpsInfo.frameCount = 0;
+        renderInfo.fpsInfo.lastTimeStamp = currentTime;
+
+        const fpsDiv = document.getElementById('fpsCounter');
+        if(fpsDiv) fpsDiv.textContent = `FPS: ${renderInfo.fpsInfo.fps}`;
+    }
 
     // Update camera
     camera.handleKeys(elapsed);
@@ -121,8 +130,8 @@ function animate(currentTime, renderInfo, camera) {
 function handleKeys(renderInfo){
     if(renderInfo.currentlyPressedKeys['KeyF']) renderInfo.animationInfo.wheelRotation+=5;
     if(renderInfo.currentlyPressedKeys['KeyG']) renderInfo.animationInfo.wheelRotation-=5;
-    if(renderInfo.currentlyPressedKeys['ArrowLeft']) renderInfo.animationInfo.steeringAngle=Math.max(renderInfo.animationInfo.steeringAngle-2,-45);
-    if(renderInfo.currentlyPressedKeys['ArrowRight']) renderInfo.animationInfo.steeringAngle=Math.min(renderInfo.animationInfo.steeringAngle+2,45);
+    if(renderInfo.currentlyPressedKeys['ArrowLeft']) renderInfo.animationInfo.steeringAngle=Math.max(renderInfo.animationInfo.steeringAngle-22.5,-45);
+    if(renderInfo.currentlyPressedKeys['ArrowRight']) renderInfo.animationInfo.steeringAngle=Math.min(renderInfo.animationInfo.steeringAngle+22.5,45);
 }
 
 function clearCanvas(gl){
@@ -138,7 +147,7 @@ function draw(currentTime,renderInfo,app){
     drawScooter(renderInfo,app);
 }
 
-function drawScooter(renderInfo,camera){
+function drawScooter(renderInfo, camera){
     const gl = renderInfo.gl,
         shader= renderInfo.shaderInfo,
         stack = renderInfo.stack,
@@ -153,15 +162,20 @@ function drawScooter(renderInfo,camera){
     gl.uniformMatrix4fv(shader.uniformLocations.viewMatrix, false, viewMatrix.elements);
 
     // Lights
-    gl.uniform3fv(shader.uniformLocations.ambientLight,[0.3, 0.3, 0.3]);
-    gl.uniform3fv(shader.uniformLocations.directionalLight,[0.6, 0.6, 0.6]);
-    gl.uniform3fv(shader.uniformLocations.directionalDir,[0.0, -1.0, -1.0]);
-    gl.uniform3fv(shader.uniformLocations.pointLightPos,[5, 10, 5]);
-    gl.uniform3fv(shader.uniformLocations.pointLightColor,[1, 1, 1]);
+    gl.uniform3fv(shader.uniformLocations.ambientLight, [0.1, 0.1, 0.1]);
+    gl.uniform3fv(shader.uniformLocations.directionalLight, [0.7, 0.7, 0.7]);
+    gl.uniform3fv(shader.uniformLocations.directionalDir, [-1.0, -1.0, -1.0]);
+    gl.uniform3fv(shader.uniformLocations.pointLightPos, [2.0, 2.0, 2.0]);
+    gl.uniform3fv(shader.uniformLocations.pointLightColor, [1.0, 0.9, 0.8]);
+
+    const normalMatrix = new Matrix4();
 
     // XZ-plane
     let gridModel = new Matrix4();
     gridModel.translate(0, -0.25, 0);
+    normalMatrix.setInverseOf(gridModel);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.grid.draw(renderInfo.shaderInfo, gridModel);
 
     stack.pushMatrix(new Matrix4());
@@ -171,69 +185,146 @@ function drawScooter(renderInfo,camera){
     modelMatrix.translate(0, 0, 0);
     modelMatrix.scale(1.3, 0.1, 0.3);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
-
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     const deck = new Cube(renderInfo, renderInfo.textures.metal);
     deck.draw(renderInfo.shaderInfo, modelMatrix);
 
-    // Front
+    // Front wheel support
+    stack.pushMatrix(stack.peekMatrix());
+    modelMatrix = stack.peekMatrix();
+    modelMatrix.translate(1.3, 0.3, 0);
+    modelMatrix.rotate(-45, 0, 0, 1);
+    modelMatrix.scale(0.65, 0.75, 0.65);
+    gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
+    renderInfo.vCylinder.draw(renderInfo.shaderInfo, modelMatrix);
+    stack.popMatrix()
+
+    // Front (rotating part)
     stack.pushMatrix(stack.peekMatrix());
     let frontMatrix = stack.peekMatrix();
-    frontMatrix.translate(1.0, -0.05, 0);
+    frontMatrix.translate(1.6, 0.3, 0);
     frontMatrix.rotate(anim.steeringAngle, 0, 1, 0);
 
-    // Vertical cylinder for steering wheel
+    // Vertical cylinder for steering
     stack.pushMatrix(frontMatrix);
     modelMatrix = stack.peekMatrix();
-    modelMatrix.translate(0.35, 1.0, 0);
-    modelMatrix.scale(0.5, 2.2, 0.5);
+    modelMatrix.translate(-0.2, 1.0, 0);
+    modelMatrix.rotate(15,0,0,1);
+    modelMatrix.scale(0.65, 1.6, 0.65);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.vCylinder.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix();
 
-    // Horizontal cylinder for steering wheel
+    // Horizontal cylinder (steering bar)
     stack.pushMatrix(frontMatrix);
     modelMatrix = stack.peekMatrix();
-    modelMatrix.translate(0.35, 2.1, 0);
+    modelMatrix.translate(-0.4, 1.8, 0);
     modelMatrix.rotate(90, 1, 0, 0);
-    modelMatrix.scale(0.5, 1.5, 0.5);
+    modelMatrix.scale(0.7, 1.3, 0.5);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix();
 
     // Left handle
     stack.pushMatrix(frontMatrix);
     modelMatrix = stack.peekMatrix();
-    modelMatrix.translate(-0.45, 1.2, 0);
+    modelMatrix.translate(-0.4, 1.8, 0.77);
     modelMatrix.rotate(90, 1, 0, 0);
-    modelMatrix.scale(0.2, 0.1, 0.1);
+    modelMatrix.scale(0.7, 0.25, 0.7);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix();
 
     // Right handle
     stack.pushMatrix(frontMatrix);
     modelMatrix = stack.peekMatrix();
-    modelMatrix.translate(0.45, 1.2, 0);
+    modelMatrix.translate(-0.4, 1.8, -0.77);
     modelMatrix.rotate(90, 1, 0, 0);
-    modelMatrix.scale(0.2, 0.1, 0.1);
+    modelMatrix.scale(0.7, 0.25, 0.7);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix();
 
-    // Front wheel
+    // Front wheel axis cylinder
     stack.pushMatrix(stack.peekMatrix());
-    modelMatrix=stack.peekMatrix();
-    modelMatrix.translate(0.9,-0.15,0);
-    modelMatrix.rotate(anim.steeringAngle,0,1,0);
-    modelMatrix.rotate(90, 90, 0, 1);
+    modelMatrix = stack.peekMatrix();
+    modelMatrix.translate(1.6, 0.3, 0);
+    modelMatrix.scale(0.55, 0.55, 0.5);
+    gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
+    renderInfo.vCylinder.draw(renderInfo.shaderInfo, modelMatrix);
+    stack.popMatrix();
+
+    // Front wheel
+    stack.pushMatrix(frontMatrix);
+    modelMatrix = stack.peekMatrix();
+    modelMatrix.translate(0,-0.35,0);
+    modelMatrix.rotate(90,1,0,0);
+    gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.frontWheel.draw(renderInfo.shaderInfo, modelMatrix, anim.wheelRotation);
     stack.popMatrix();
+
+    stack.popMatrix();
+
+    // Rear wheel support arm (v)
+    stack.pushMatrix(stack.peekMatrix());
+    modelMatrix = stack.peekMatrix();
+    modelMatrix.translate(-1.2, 0.15, 0);
+    modelMatrix.rotate(-35,0,0,1);
+    modelMatrix.scale(0.08, 0.02, 0.04);
+    gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
+    const supportArm = new Cube(renderInfo, renderInfo.textures.metal);
+    supportArm.draw(renderInfo.shaderInfo, modelMatrix);
+    stack.popMatrix();
+
+    // Rear wheel support arm (h)
+    stack.pushMatrix(stack.peekMatrix());
+    modelMatrix = stack.peekMatrix();
+    modelMatrix.translate(-1.5, 0.20, 0);
+    modelMatrix.rotate(90,1,0,0);
+    modelMatrix.scale(0.35, 0.1, 0.01);
+    gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
+    const supportArm2 = new Cube(renderInfo, renderInfo.textures.metal);
+    supportArm2.draw(renderInfo.shaderInfo, modelMatrix);
+    stack.popMatrix()
 
     // Back wheel
     stack.pushMatrix(stack.peekMatrix());
     modelMatrix=stack.peekMatrix();
-    modelMatrix.translate(-0.9,-0.15,0);
-    modelMatrix.rotate(90, 90, 0, 1);
+    modelMatrix.translate(-1.6,-0.05,0);
+    modelMatrix.rotate(90, 1, 0, 0);
+    gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
+    normalMatrix.setInverseOf(modelMatrix);
+    normalMatrix.transpose();
+    gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.backWheel.draw(renderInfo.shaderInfo, modelMatrix, anim.wheelRotation);
     stack.popMatrix();
 
