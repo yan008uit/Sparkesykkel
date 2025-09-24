@@ -1,15 +1,19 @@
 'use strict';
 
-import {WebGLCanvas} from './helpers/WebGLCanvas.js';
-import {WebGLShader} from './helpers/WebGLShader.js';
-import {Camera} from "./helpers/Camera.js";
-import {Stack} from "./helpers/Stack.js";
-import {ImageLoader} from "./helpers/ImageLoader.js";
-import {isPowerOfTwo1} from './lib/utility-functions.js';
+import { isPowerOfTwo1 } from './lib/utility-functions.js';
+import { WebGLCanvas } from './helpers/WebGLCanvas.js';
+import { WebGLShader } from './helpers/WebGLShader.js';
+import { ImageLoader } from "./helpers/ImageLoader.js";
+import { Camera } from "./helpers/Camera.js";
+import { Stack } from "./helpers/Stack.js";
+import { Cube } from "./shapes/Cube.js";
+import { Wheels } from "./shapes/Wheels.js";
+import { Cylinder } from "./shapes/Cylinder.js";
+import { XZPlane } from "./shapes/XZPlane.js";
 
 export function main() {
-    const glWrapper = new WebGLCanvas('myCanvas', document.body, 960, 640);
-    const gl = glWrapper.gl;
+    const webGLCanvas = new WebGLCanvas('myCanvas', document.body, 960, 640);
+    const gl = webGLCanvas.gl;
 
     const imageLoader = new ImageLoader();
     const textureUrls = ['textures/metal1.png', 'textures/wheelTexture.png'];
@@ -22,16 +26,19 @@ export function main() {
         const renderInfo = {
             gl: gl,
             shaderInfo: initShaders(gl),
-            cubeBuffer: initCubeBuffers(gl),
-            cylinderBuffer: initCylinderBuffers(gl, 32),
-            wheelBuffer: initWheelBuffers(gl, 32),
             textures: textures,
             currentlyPressedKeys: [],
             stack: new Stack(),
             lastTime: 0,
             fpsInfo: { frameCount: 0, lastTimeStamp: 0 },
-            animationInfo: { wheelRotation: 0, steeringAngle: 0 }
+            animationInfo: { wheelRotation: 0, steeringAngle: 0 },
+            frontWheel: new Wheels({ gl }, 32, textures.wheel),
+            backWheel: new Wheels({ gl }, 32, textures.wheel),
+            vCylinder: new Cylinder({ gl }, 32, textures.metal),
+            hCylinder: new Cylinder({ gl }, 32, textures.metal),
         };
+
+        renderInfo.grid = new XZPlane({ gl }, 40, 40, 40);
 
         initKeyPress(renderInfo.currentlyPressedKeys);
 
@@ -65,9 +72,11 @@ function initKeyPress(currentlyPressedKeys) {
 }
 
 function initShaders(gl) {
+    // Gets shader info from index.html
     const vertexShaderSource = document.getElementById("base-vertex-shader").text;
     const fragmentShaderSource = document.getElementById("base-fragment-shader").text;
 
+    // Initialize shader program
     const glslShader = new WebGLShader(gl, vertexShaderSource, fragmentShaderSource);
 
     return {
@@ -75,7 +84,7 @@ function initShaders(gl) {
         attribLocations: {
             vertexPosition: gl.getAttribLocation(glslShader.shaderProgram, "aVertexPosition"),
             vertexNormal: gl.getAttribLocation(glslShader.shaderProgram, "aVertexNormal"),
-            textureCoord: gl.getAttribLocation(glslShader.shaderProgram, "aTextureCoord"),
+            textureCoordinates: gl.getAttribLocation(glslShader.shaderProgram, "aTextureCoord"),
         },
         uniformLocations: {
             modelMatrix: gl.getUniformLocation(glslShader.shaderProgram, "uModelMatrix"),
@@ -94,125 +103,7 @@ function initShaders(gl) {
     };
 }
 
-// --- Cube Buffers ---
-function initCubeBuffers(gl) {
-    const positions = [
-        -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1,
-        -1, -1, -1, -1, 1, -1, 1, 1, -1, 1, -1, -1,
-        -1, 1, -1, -1, 1, 1, 1, 1, 1, 1, 1, -1,
-        -1, -1, -1, 1, -1, -1, 1, -1, 1, -1, -1, 1,
-        1, -1, -1, 1, 1, -1, 1, 1, 1, 1, -1, 1,
-        -1, -1, -1, -1, -1, 1, -1, 1, 1, -1, 1, -1
-    ];
-    const normals = [
-        0,0,1,0,0,1,0,0,1,0,0,1,
-        0,0,-1,0,0,-1,0,0,-1,0,0,-1,
-        0,1,0,0,1,0,0,1,0,0,1,0,
-        0,-1,0,0,-1,0,0,-1,0,0,-1,0,
-        1,0,0,1,0,0,1,0,0,1,0,0,
-        -1,0,0,-1,0,0,-1,0,0,-1,0,0
-    ];
-    const texcoords = [
-        0,0,1,0,1,1,0,1,
-        0,0,1,0,1,1,0,1,
-        0,0,1,0,1,1,0,1,
-        0,0,1,0,1,1,0,1,
-        0,0,1,0,1,1,0,1,
-        0,0,1,0,1,1,0,1
-    ];
-    const indices = [];
-    for(let i=0;i<6;i++) indices.push(i*4,i*4+1,i*4+2,i*4,i*4+2,i*4+3);
-
-    const posBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER,posBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(positions),gl.STATIC_DRAW);
-
-    const normalBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER,normalBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(normals),gl.STATIC_DRAW);
-
-    const texBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER,texBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(texcoords),gl.STATIC_DRAW);
-
-    const indexBuffer = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexBuffer);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indices),gl.STATIC_DRAW);
-
-    return { position: posBuffer, normal: normalBuffer, texcoord: texBuffer, indices: indexBuffer, vertexCount: indices.length };
-}
-
-function initCylinderBuffers(gl,slices){
-    const positions=[], normals=[], texcoords=[], indices=[];
-    for(let i=0;i<=slices;i++){
-        const theta=i*2*Math.PI/slices;
-        const x=0.1*Math.cos(theta), z=0.1*Math.sin(theta);
-        positions.push(x,0.5,z,x,-0.5,z);
-        normals.push(x,0,z,x,0,z);
-        texcoords.push(i/slices,0,i/slices,1);
-    }
-    for(let i=0;i<slices;i++){
-        const t1=i*2,b1=i*2+1,t2=(i+1)*2,b2=(i+1)*2+1;
-        indices.push(t1,b1,t2); indices.push(b1,b2,t2);
-    }
-    const posBuffer=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,posBuffer); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(positions),gl.STATIC_DRAW);
-    const normalBuffer=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,normalBuffer); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(normals),gl.STATIC_DRAW);
-    const texBuffer=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,texBuffer); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(texcoords),gl.STATIC_DRAW);
-    const indexBuffer=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexBuffer); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(indices),gl.STATIC_DRAW);
-
-    return {position:posBuffer,normal:normalBuffer,texcoord:texBuffer,indices:indexBuffer,vertexCount:indices.length};
-}
-
-// --- Wheel Buffers (Tire + Rim) ---
-function initWheelBuffers(gl,slices){
-    const tirePositions=[], tireTex=[], tireIndices=[], tireNormals=[];
-    for(let i=0;i<=slices;i++){
-        const theta=i*2*Math.PI/slices;
-        const x=0.5*Math.cos(theta), z=0.5*Math.sin(theta);
-        tirePositions.push(x,0.1,z,x,-0.1,z);
-        tireTex.push(i/slices,0,i/slices,1);
-        tireNormals.push(x,0,z,x,0,z);
-    }
-    for(let i=0;i<slices;i++){
-        const t1=i*2,b1=i*2+1,t2=(i+1)*2,b2=(i+1)*2+1;
-        tireIndices.push(t1,b1,t2); tireIndices.push(b1,b2,t2);
-    }
-    const tirePosBuffer=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,tirePosBuffer); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(tirePositions),gl.STATIC_DRAW);
-    const tireTexBuffer=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,tireTexBuffer); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(tireTex),gl.STATIC_DRAW);
-    const tireIndexBuffer=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,tireIndexBuffer); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(tireIndices),gl.STATIC_DRAW);
-
-    // Rim simplified torus
-    const rimPositions=[], rimTex=[], rimIndices=[], rimNormals=[];
-    const innerR=0.2, outerR=0.3, tube=0.05;
-    for(let slice=0;slice<=slices;slice++){
-        const slice_angle=(slice/slices)*2*Math.PI;
-        for(let ring=0;ring<=slices;ring++){
-            const ring_angle=(ring/slices)*2*Math.PI;
-            const x=(innerR+tube*Math.cos(ring_angle))*Math.cos(slice_angle);
-            const y=tube*Math.sin(ring_angle);
-            const z=(innerR+tube*Math.cos(ring_angle))*Math.sin(slice_angle);
-            rimPositions.push(x,y,z);
-            rimNormals.push(x,y,z);
-            rimTex.push(slice/slices,ring/slices*0.5);
-        }
-    }
-    for(let slice=0;slice<slices;slice++){
-        for(let ring=0;ring<slices;ring++){
-            const first=slice*(slices+1)+ring, second=first+slices+1;
-            rimIndices.push(first,second,first+1); rimIndices.push(second,second+1,first+1);
-        }
-    }
-    const rimPosBuffer=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,rimPosBuffer); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(rimPositions),gl.STATIC_DRAW);
-    const rimTexBuffer=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,rimTexBuffer); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(rimTex),gl.STATIC_DRAW);
-    const rimIndexBuffer=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,rimIndexBuffer); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(rimIndices),gl.STATIC_DRAW);
-
-    return {
-        tire:{position:tirePosBuffer,texcoord:tireTexBuffer,indices:tireIndexBuffer,vertexCount:tireIndices.length},
-        rim:{position:rimPosBuffer,texcoord:rimTexBuffer,indices:rimIndexBuffer,vertexCount:rimIndices.length}
-    };
-}
-
-// --- Animation Loop ---
+// Animation Loop
 function animate(currentTime, renderInfo, camera) {
     window.requestAnimationFrame((time)=>animate(time,renderInfo,camera));
     let elapsed = 0;
@@ -247,155 +138,104 @@ function draw(currentTime,renderInfo,app){
     drawScooter(renderInfo,app);
 }
 
-function drawCube(gl, shader, renderInfo, texture) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, renderInfo.cubeBuffer.position);
-    gl.vertexAttribPointer(shader.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(shader.attribLocations.vertexPosition);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, renderInfo.cubeBuffer.texcoord);
-    gl.vertexAttribPointer(shader.attribLocations.textureCoord, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(shader.attribLocations.textureCoord);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderInfo.cubeBuffer.indices);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.uniform1i(shader.uniformLocations.useTexture, 1);
-
-    gl.drawElements(gl.TRIANGLES, renderInfo.cubeBuffer.vertexCount, gl.UNSIGNED_SHORT, 0);
-}
-
-function drawCylinder(gl, shader, renderInfo, texture) {
-    gl.bindBuffer(gl.ARRAY_BUFFER, renderInfo.cylinderBuffer.position);
-    gl.vertexAttribPointer(shader.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(shader.attribLocations.vertexPosition);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, renderInfo.cylinderBuffer.texcoord);
-    gl.vertexAttribPointer(shader.attribLocations.textureCoord, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(shader.attribLocations.textureCoord);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, renderInfo.cylinderBuffer.indices);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.uniform1i(shader.uniformLocations.useTexture, 1);
-
-    gl.drawElements(gl.TRIANGLES, renderInfo.cylinderBuffer.vertexCount, gl.UNSIGNED_SHORT, 0);
-}
-
 function drawScooter(renderInfo,camera){
-    const gl=renderInfo.gl, shader=renderInfo.shaderInfo, stack=renderInfo.stack, anim=renderInfo.animationInfo;
+    const gl = renderInfo.gl,
+        shader= renderInfo.shaderInfo,
+        stack = renderInfo.stack,
+        anim= renderInfo.animationInfo;
+
     gl.useProgram(shader.program);
 
-    // Camera matrices
+    // Camera
     const viewMatrix = camera.getViewMatrix();
     const projectionMatrix = camera.getProjectionMatrix();
     gl.uniformMatrix4fv(shader.uniformLocations.projectionMatrix, false, projectionMatrix.elements);
     gl.uniformMatrix4fv(shader.uniformLocations.viewMatrix, false, viewMatrix.elements);
 
-    gl.uniform3fv(shader.uniformLocations.ambientLight,[0.3,0.3,0.3]);
-    gl.uniform3fv(shader.uniformLocations.directionalLight,[0.6,0.6,0.6]);
-    gl.uniform3fv(shader.uniformLocations.directionalDir,[0.0,-1.0,-1.0]);
-    gl.uniform3fv(shader.uniformLocations.pointLightPos,[5,10,5]);
-    gl.uniform3fv(shader.uniformLocations.pointLightColor,[1,1,1]);
+    // Lights
+    gl.uniform3fv(shader.uniformLocations.ambientLight,[0.3, 0.3, 0.3]);
+    gl.uniform3fv(shader.uniformLocations.directionalLight,[0.6, 0.6, 0.6]);
+    gl.uniform3fv(shader.uniformLocations.directionalDir,[0.0, -1.0, -1.0]);
+    gl.uniform3fv(shader.uniformLocations.pointLightPos,[5, 10, 5]);
+    gl.uniform3fv(shader.uniformLocations.pointLightColor,[1, 1, 1]);
+
+    // XZ-plane
+    let gridModel = new Matrix4();
+    gridModel.translate(0, -0.25, 0);
+    renderInfo.grid.draw(renderInfo.shaderInfo, gridModel);
 
     stack.pushMatrix(new Matrix4());
 
-    // --- Plattform (deck) ---
+    // Platform
     let modelMatrix = stack.peekMatrix();
     modelMatrix.translate(0, 0, 0);
     modelMatrix.scale(1.3, 0.1, 0.3);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
-    drawCube(gl, shader, renderInfo, renderInfo.textures.metal);
 
-    // --- Frontparti (styre + forhjul) ---
+    const deck = new Cube(renderInfo, renderInfo.textures.metal);
+    deck.draw(renderInfo.shaderInfo, modelMatrix);
+
+    // Front
     stack.pushMatrix(stack.peekMatrix());
     let frontMatrix = stack.peekMatrix();
     frontMatrix.translate(1.0, -0.05, 0);
     frontMatrix.rotate(anim.steeringAngle, 0, 1, 0);
 
-    // Styrestang (vertikal)
+    // Vertical cylinder for steering wheel
     stack.pushMatrix(frontMatrix);
     modelMatrix = stack.peekMatrix();
     modelMatrix.translate(0.35, 1.0, 0);
     modelMatrix.scale(0.5, 2.2, 0.5);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
-    drawCylinder(gl, shader, renderInfo, renderInfo.textures.metal);
+    renderInfo.vCylinder.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix();
 
-    // Horisontal styrestang
+    // Horizontal cylinder for steering wheel
     stack.pushMatrix(frontMatrix);
     modelMatrix = stack.peekMatrix();
     modelMatrix.translate(0.35, 2.1, 0);
     modelMatrix.rotate(90, 1, 0, 0);
     modelMatrix.scale(0.5, 1.5, 0.5);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
-    drawCylinder(gl, shader, renderInfo, renderInfo.textures.metal);
+    renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix();
 
-    // Venstre håndtak
+    // Left handle
     stack.pushMatrix(frontMatrix);
     modelMatrix = stack.peekMatrix();
     modelMatrix.translate(-0.45, 1.2, 0);
     modelMatrix.rotate(90, 1, 0, 0);
     modelMatrix.scale(0.2, 0.1, 0.1);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
-    drawCylinder(gl, shader, renderInfo, renderInfo.textures.metal);
+    renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix();
 
-    // Høyre håndtak
+    // Right handle
     stack.pushMatrix(frontMatrix);
     modelMatrix = stack.peekMatrix();
     modelMatrix.translate(0.45, 1.2, 0);
     modelMatrix.rotate(90, 1, 0, 0);
     modelMatrix.scale(0.2, 0.1, 0.1);
     gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix, false, modelMatrix.elements);
-    drawCylinder(gl, shader, renderInfo, renderInfo.textures.metal);
+    renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix();
 
-    // --- Wheels ---
-    // Front
+    // Front wheel
     stack.pushMatrix(stack.peekMatrix());
     modelMatrix=stack.peekMatrix();
     modelMatrix.translate(0.9,-0.15,0);
     modelMatrix.rotate(anim.steeringAngle,0,1,0);
-    drawWheel(renderInfo,modelMatrix);
+    modelMatrix.rotate(90, 90, 0, 1);
+    renderInfo.frontWheel.draw(renderInfo.shaderInfo, modelMatrix, anim.wheelRotation);
     stack.popMatrix();
 
-    // Back
+    // Back wheel
     stack.pushMatrix(stack.peekMatrix());
     modelMatrix=stack.peekMatrix();
     modelMatrix.translate(-0.9,-0.15,0);
-    drawWheel(renderInfo,modelMatrix);
+    modelMatrix.rotate(90, 90, 0, 1);
+    renderInfo.backWheel.draw(renderInfo.shaderInfo, modelMatrix, anim.wheelRotation);
     stack.popMatrix();
 
     stack.popMatrix();
-}
-
-function drawWheel(renderInfo,modelMatrix){
-    const gl=renderInfo.gl, shader=renderInfo.shaderInfo, anim=renderInfo.animationInfo;
-
-    // Tire
-    gl.bindBuffer(gl.ARRAY_BUFFER,renderInfo.wheelBuffer.tire.position);
-    gl.vertexAttribPointer(shader.attribLocations.vertexPosition,3,gl.FLOAT,false,0,0);
-    gl.enableVertexAttribArray(shader.attribLocations.vertexPosition);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER,renderInfo.wheelBuffer.tire.texcoord);
-    gl.vertexAttribPointer(shader.attribLocations.textureCoord,2,gl.FLOAT,false,0,0);
-    gl.enableVertexAttribArray(shader.attribLocations.textureCoord);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,renderInfo.wheelBuffer.tire.indices);
-    gl.bindTexture(gl.TEXTURE_2D,renderInfo.textures.wheel);
-    gl.uniform1i(shader.uniformLocations.useTexture,1);
-
-    const tireMatrix=new Matrix4(modelMatrix);
-    tireMatrix.rotate(anim.wheelRotation,0,0,1);
-    gl.uniformMatrix4fv(shader.uniformLocations.modelMatrix,false,tireMatrix.elements);
-    gl.drawElements(gl.TRIANGLES,renderInfo.wheelBuffer.tire.vertexCount,gl.UNSIGNED_SHORT,0);
-
-    // Rim
-    gl.bindBuffer(gl.ARRAY_BUFFER,renderInfo.wheelBuffer.rim.position);
-    gl.vertexAttribPointer(shader.attribLocations.vertexPosition,3,gl.FLOAT,false,0,0);
-    gl.enableVertexAttribArray(shader.attribLocations.vertexPosition);
-    gl.bindBuffer(gl.ARRAY_BUFFER,renderInfo.wheelBuffer.rim.texcoord);
-    gl.vertexAttribPointer(shader.attribLocations.textureCoord,2,gl.FLOAT,false,0,0);
-    gl.enableVertexAttribArray(shader.attribLocations.textureCoord);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,renderInfo.wheelBuffer.rim.indices);
-    gl.drawElements(gl.TRIANGLES,renderInfo.wheelBuffer.rim.vertexCount,gl.UNSIGNED_SHORT,0);
 }

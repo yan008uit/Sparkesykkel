@@ -1,26 +1,30 @@
 <!DOCTYPE html>
-<html lang="nb">
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Oblig 2</title>
+    <meta charset="UTF-8">
+    <title>Mandatory Assignment #2</title>
     <link rel="stylesheet" href="/css/stylesheet.css" type="text/css">
     <script src="lib/cuon-matrix.js"></script>
     <script src="lib/gl-matrix.js"></script>
 </head>
 
 <body>
-<div style="top:0px; left:15px; width:100%; text-align:left; color:black;" class="ui">
-    <h2>WebGL Sparkesykkel</h2>
-    FPS: <span id="fps">--</span><br>
-    WASD Kamerastyring<br>
-    VB Zoom<br>
-    F/G Hjulrotasjon<br>
-    ←/→ Styre<br>
+<div class="container">
+    <section class = "info">
+        <h1>Scooter</h1>
+        <ul class = "controls">
+            <li>Rotate Camera : <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> </li>
+            <li>Rotate Steering Wheel: <kbd>←</kbd> <kbd>→</kbd></li>
+            <li>Rotate Wheels : <kbd>N</kbd> <kbd>M</kbd></li>
+            <li>Zoom : <kbd>V</kbd> <kbd>B</kbd></li>
+        </ul>
+    </section>
 </div>
 
-<!-- SHADERS -->
+<!-- Shaders -->
 <script id="base-vertex-shader" type="x-shader/x-vertex">
     attribute vec3 aVertexPosition;
+    attribute vec4 aVertexColor;
     attribute vec3 aVertexNormal;
     attribute vec2 aTextureCoord;
 
@@ -83,6 +87,7 @@
     }
 </script>
 
+<!-- Module -->
 <script type="module">
     'use strict';
     import {main} from "./Scooter.js";

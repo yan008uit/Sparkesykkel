@@ -1,7 +1,3 @@
-/**
- * Laster et eller flere bilder og kaller på gitt callback-funksjon når alle biler er lastet.
- * Bruker Promise.
- */
 export class ImageLoader {
     constructor() {
     }
