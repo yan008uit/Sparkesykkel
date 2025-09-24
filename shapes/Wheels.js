@@ -103,7 +103,7 @@ export class Wheels {
         const tireMatrix = new Matrix4(modelMatrix);
 
         this.bindAttributes(this.tire, shaderInfo);
-        tireMatrix.rotate(rotation, 0, 0, 1);
+        tireMatrix.rotate(rotation, 0, 1, 0);
 
         gl.uniformMatrix4fv(shaderInfo.uniformLocations.modelMatrix, false, tireMatrix.elements);
         const n1 = new Matrix4(tireMatrix);
