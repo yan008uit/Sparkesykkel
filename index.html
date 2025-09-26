@@ -9,7 +9,7 @@
 </head>
 
 <body>
-<div id="fpsCounter" style="position: fixed; top: 10px; right: 580px; background: rgba(0,0,0,0.5); color: white; padding: 5px; font-family: monospace; z-index: 100;">
+<div class = "fpsCounter">
     FPS: 0
 </div>
 <div class="container">
@@ -39,11 +39,13 @@
     varying vec3 vNormal;
     varying vec3 vPosition;
     varying vec2 vTextureCoord;
+    varying vec4 vColor;
 
     void main(void) {
         vNormal = mat3(uNormalMatrix) * aVertexNormal;
         vPosition = vec3(uModelMatrix * vec4(aVertexPosition, 1.0));
         vTextureCoord = aTextureCoord;
+        vColor = aVertexColor;
 
         gl_Position = uProjectionMatrix * uViewMatrix * uModelMatrix * vec4(aVertexPosition, 1.0);
     }
@@ -65,6 +67,7 @@
     varying vec3 vNormal;
     varying vec3 vPosition;
     varying vec2 vTextureCoord;
+    varying vec4 vColor;
 
     void main(void) {
         // Normalize normal
@@ -84,7 +87,7 @@
         vec3 light = uAmbientLight + directional + pointLight;
 
         // Base color
-        vec4 baseColor = uUseTexture ? texture2D(uSampler, vTextureCoord) : uFragmentColor;
+        vec4 baseColor = uUseTexture ? texture2D(uSampler, vTextureCoord) : vColor;
 
         gl_FragColor = vec4(baseColor.rgb * light, baseColor.a);
     }

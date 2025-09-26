@@ -7,6 +7,7 @@ canvas {
 
 body{
     margin:0;
+    padding:2px;
     font: 16px/1.6  sans-serif;
     color:black;
 }
@@ -54,4 +55,17 @@ kbd{
     border-radius: 4px;
     background: white;
     font: 13px/1.1  sans-serif;
+}
+
+.fpsCounter{
+    position: fixed;
+    top: 10px;
+    left: 900px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    padding: 5px;
+    font: 16px/1.6 sans-serif;
+    z-index: 100;"
+    border-bottom-width: 2px;
+    border-radius: 4px;
 }

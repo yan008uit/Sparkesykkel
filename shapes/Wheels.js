@@ -6,16 +6,16 @@ export class Wheels {
         this.tireTexture = tireTexture;
 
         this.initBuffers(slices);
-
     }
+
     initBuffers(slices) {
         const gl = this.gl;
 
         // Tire
-        const tirePositions = [],
-            tireTexCoords = [],
-            tireNormals = [],
-            tireIndices = [];
+        const tirePositions = [];
+        const tireTexCoords = [];
+        const tireNormals = [];
+        const tireIndices = [];
 
         for (let i = 0; i <= slices; i++) {
             const radius = 0.2;

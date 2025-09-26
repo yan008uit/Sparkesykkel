@@ -10,6 +10,7 @@ import { Cube } from "./shapes/Cube.js";
 import { Wheels } from "./shapes/Wheels.js";
 import { Cylinder } from "./shapes/Cylinder.js";
 import { XZPlane } from "./shapes/XZPlane.js";
+import { CoordinateAxes } from "./shapes/CoordinateAxes.js";
 
 export function main() {
     const webGLCanvas = new WebGLCanvas('myCanvas', document.body, 960, 640);
@@ -36,6 +37,7 @@ export function main() {
             backWheel: new Wheels({ gl }, 32, textures.wheel),
             vCylinder: new Cylinder({ gl }, 32, textures.metal),
             hCylinder: new Cylinder({ gl }, 32, textures.metal),
+            coord: new CoordinateAxes({ gl } ),
         };
 
         renderInfo.grid = new XZPlane({ gl }, 40, 40, 40);
@@ -55,6 +57,8 @@ export function main() {
 function createTexture(gl, image) {
     const texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
     gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,image);
 
     if(isPowerOfTwo1(image.width) && isPowerOfTwo1(image.height)) gl.generateMipmap(gl.TEXTURE_2D);
@@ -85,6 +89,7 @@ function initShaders(gl) {
             vertexPosition: gl.getAttribLocation(glslShader.shaderProgram, "aVertexPosition"),
             vertexNormal: gl.getAttribLocation(glslShader.shaderProgram, "aVertexNormal"),
             textureCoordinates: gl.getAttribLocation(glslShader.shaderProgram, "aTextureCoord"),
+            vertexColor: gl.getAttribLocation(glslShader.shaderProgram, "aVertexColor"),
         },
         uniformLocations: {
             modelMatrix: gl.getUniformLocation(glslShader.shaderProgram, "uModelMatrix"),
@@ -167,6 +172,12 @@ function drawScooter(renderInfo, camera){
     gl.uniform3fv(shader.uniformLocations.directionalDir, [-1.0, -1.0, -1.0]);
     gl.uniform3fv(shader.uniformLocations.pointLightPos, [2.0, 2.0, 2.0]);
     gl.uniform3fv(shader.uniformLocations.pointLightColor, [1.0, 0.9, 0.8]);
+
+    // Coordinate system
+    const coordModel = new Matrix4();
+    coordModel.setIdentity();
+    renderInfo.coord.draw(renderInfo.shaderInfo, coordModel);
+    gl.disableVertexAttribArray(shader.attribLocations.vertexColor);
 
     const normalMatrix = new Matrix4();
 
@@ -316,7 +327,7 @@ function drawScooter(renderInfo, camera){
     supportArm2.draw(renderInfo.shaderInfo, modelMatrix);
     stack.popMatrix()
 
-    // Back wheel
+    // Rear wheel
     stack.pushMatrix(stack.peekMatrix());
     modelMatrix=stack.peekMatrix();
     modelMatrix.translate(-1.6,-0.05,0);
