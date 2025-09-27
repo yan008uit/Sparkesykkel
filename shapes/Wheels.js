@@ -4,88 +4,59 @@ export class Wheels {
     constructor(app, slices, tireTexture) {
         this.gl = app.gl;
         this.tireTexture = tireTexture;
+        this.slices = slices;
 
-        this.initBuffers(slices);
+        this.initBuffers();
     }
 
-    initBuffers(slices) {
+    initBuffers() {
         const gl = this.gl;
+        const slices = this.slices;
 
-        // Tire
         const tirePositions = [];
         const tireTexCoords = [];
         const tireNormals = [];
         const tireIndices = [];
 
+        const radius = 0.2;
+        const halfHeight = 0.1;
+
         for (let i = 0; i <= slices; i++) {
-            const radius = 0.2;
-            const theta = i * 2 * Math.PI /slices;
+            const theta = (i / slices) * 2 * Math.PI;
             const x = radius * Math.cos(theta);
             const z = radius * Math.sin(theta);
 
-            tirePositions.push(x, 0.1, z, x, -0.1, z);
-            tireTexCoords.push(i / slices, 0, i / slices, 1);
-            tireNormals.push(x, 0, z, x, 0, z);
+            tirePositions.push(x, halfHeight, z, x, -halfHeight, z);
+
+            const nx = x / radius;
+            const nz = z / radius;
+            tireNormals.push(nx, 0, nz, nx, 0, nz);
+
+            tireTexCoords.push(i / slices, 0.73633, i / slices, 1);
         }
 
         for (let i = 0; i < slices; i++) {
             const t1 = i * 2;
-            const t2 = (i +1) * 2;
-            const b1 = i * 2 + 1;
-            const b2 = (i + 1) * 2 + 1;
-
-            tireIndices.push(t1, b1, t2);
-            tireIndices.push(b1, b2, t2);
+            const t2 = (i + 1) * 2;
+            const b1 = t1 + 1;
+            const b2 = t2 + 1;
+            tireIndices.push(t1, b1, t2, b1, b2, t2);
         }
 
-        this.tire = {
-            position: this.createBuffer(tirePositions, gl.ARRAY_BUFFER, Float32Array),
-            textureCoordinates: this.createBuffer(tireTexCoords, gl.ARRAY_BUFFER, Float32Array),
-            normals:   this.createBuffer(tireNormals, gl.ARRAY_BUFFER, Float32Array),
-            indices:  this.createBuffer(tireIndices, gl.ELEMENT_ARRAY_BUFFER, Uint16Array),
-            vertexCount: tireIndices.length
-        };
+        this.tire = this.createPart(tirePositions, tireTexCoords, tireNormals, tireIndices);
 
-        // Tire rim
-        const rimPositions = [],
-            rimTexCoords = [],
-            rimNormals = [],
-            rimIndices = [];
+        this.rimTop = this.createRim(this.slices, halfHeight);
+        this.rimBottom = this.createRim(this.slices, -halfHeight);
+    }
 
-        const innerRadius = 0.2;
-        const tube = 0.05;
-
-        for (let slice = 0; slice <= slices; slice++) {
-            const sliceAngle = (slice / slices) * 2 * Math.PI;
-
-            for (let ring = 0; ring <= slices; ring++) {
-                const ringAngle = (ring / slices) * 2 * Math.PI;
-                const x = (innerRadius + tube * Math.cos(ringAngle)) * Math.cos(sliceAngle);
-                const y= tube * Math.sin(ringAngle);
-                const z= (innerRadius + tube *Math.cos(ringAngle)) * Math.sin(sliceAngle);
-
-                rimPositions.push(x, y, z);
-                rimNormals.push(x, y, z);
-                rimTexCoords.push(slice / slices, ring / slices * 0.5)
-            }
-        }
-
-        for (let slice = 0; slice < slices; slice++) {
-            for (let ring = 0; ring < slices; ring++) {
-                const first = slice * (slices + 1) + ring;
-                const second = first + slices + 1;
-
-                rimIndices.push(first, second, first + 1);
-                rimIndices.push(second, second + 1, first + 1);
-            }
-        }
-
-        this.rim = {
-            position: this.createBuffer(rimPositions, gl.ARRAY_BUFFER, Float32Array),
-            textureCoordinates: this.createBuffer(rimTexCoords, gl.ARRAY_BUFFER, Float32Array),
-            normals:   this.createBuffer(rimNormals, gl.ARRAY_BUFFER, Float32Array),
-            indices:  this.createBuffer(rimIndices, gl.ELEMENT_ARRAY_BUFFER, Uint16Array),
-            vertexCount: rimIndices.length
+    createPart(positions, texCoords, normals, indices) {
+        const gl = this.gl;
+        return {
+            position: this.createBuffer(positions, gl.ARRAY_BUFFER, Float32Array),
+            textureCoordinates: this.createBuffer(texCoords, gl.ARRAY_BUFFER, Float32Array),
+            normals: this.createBuffer(normals, gl.ARRAY_BUFFER, Float32Array),
+            indices: this.createBuffer(indices, gl.ELEMENT_ARRAY_BUFFER, Uint16Array),
+            vertexCount: indices.length
         };
     }
 
@@ -94,40 +65,40 @@ export class Wheels {
         const buffer = gl.createBuffer();
         gl.bindBuffer(target, buffer);
         gl.bufferData(target, new type(data), gl.STATIC_DRAW);
-
         return buffer;
     }
 
-    draw(shaderInfo, modelMatrix, rotation) {
-        const gl = this.gl;
-        const tireMatrix = new Matrix4(modelMatrix);
+    createRim(slices, rimY) {
+        const positions = [];
+        const texCoords = [];
+        const normals = [];
+        const indices = [];
+        const rimRadius = 0.2;
 
-        this.bindAttributes(this.tire, shaderInfo);
-        tireMatrix.rotate(rotation, 0, 1, 0);
+        const rimCenterU = 0.265;
+        const rimCenterV = 0.265;
+        const rimScale   = 0.255;
 
-        gl.uniformMatrix4fv(shaderInfo.uniformLocations.modelMatrix, false, tireMatrix.elements);
-        const n1 = new Matrix4(tireMatrix);
-        n1.invert();
-        n1.transpose();
-        gl.uniformMatrix4fv(shaderInfo.uniformLocations.normalMatrix, false, n1.elements);
+        positions.push(0, rimY, 0);
+        normals.push(0, 1, 0);
+        texCoords.push(rimCenterU, rimCenterV);
 
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, this.tireTexture);
-        gl.uniform1i(shaderInfo.uniformLocations.sampler, 0);
-        gl.uniform1i(shaderInfo.uniformLocations.useTexture, 1);
+        for (let slice = 0; slice <= slices; slice++) {
+            const angle = (slice / slices) * 2 * Math.PI;
+            const x = rimRadius * Math.cos(angle);
+            const z = rimRadius * Math.sin(angle);
 
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.tire.indices);
-        gl.drawElements(gl.TRIANGLES, this.tire.vertexCount, gl.UNSIGNED_SHORT, 0);
+            positions.push(x, rimY, z);
+            normals.push(0, 1, 0);
+            texCoords.push(rimCenterU + (x / rimRadius) * rimScale,
+                rimCenterV + (z / rimRadius) * rimScale);
+        }
 
-        // Rim
-        this.bindAttributes(this.rim, shaderInfo);
-        gl.uniform1i(shaderInfo.uniformLocations.useTexture, 0);
-        gl.uniformMatrix4fv(shaderInfo.uniformLocations.modelMatrix, false, modelMatrix.elements);
-        const n2 = new Matrix4(modelMatrix); n2.invert(); n2.transpose();
-        gl.uniformMatrix4fv(shaderInfo.uniformLocations.normalMatrix, false, n2.elements);
+        for (let slice = 1; slice <= slices; slice++) {
+            indices.push(0, slice, slice + 1);
+        }
 
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.rim.indices);
-        gl.drawElements(gl.TRIANGLES, this.rim.vertexCount, gl.UNSIGNED_SHORT, 0);
+        return this.createPart(positions, texCoords, normals, indices);
     }
 
     bindAttributes(part, shaderInfo) {
@@ -138,7 +109,7 @@ export class Wheels {
         gl.vertexAttribPointer(shaderInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shaderInfo.attribLocations.vertexPosition);
 
-        // Texture coordinates
+        // Texture
         gl.bindBuffer(gl.ARRAY_BUFFER, part.textureCoordinates);
         gl.vertexAttribPointer(shaderInfo.attribLocations.textureCoordinates, 2, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shaderInfo.attribLocations.textureCoordinates);
@@ -147,5 +118,41 @@ export class Wheels {
         gl.bindBuffer(gl.ARRAY_BUFFER, part.normals);
         gl.vertexAttribPointer(shaderInfo.attribLocations.vertexNormal, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shaderInfo.attribLocations.vertexNormal);
+    }
+
+    draw(shaderInfo, modelMatrix, rotation = 0) {
+        const gl = this.gl;
+        const tireMatrix = new Matrix4(modelMatrix).rotate(rotation, 0, 1, 0);
+
+        this.bindAttributes(this.tire, shaderInfo);
+        gl.uniformMatrix4fv(shaderInfo.uniformLocations.modelMatrix, false, tireMatrix.elements);
+
+        const normalMatrix = new Matrix4(tireMatrix).invert().transpose();
+        gl.uniformMatrix4fv(shaderInfo.uniformLocations.normalMatrix, false, normalMatrix.elements);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.tireTexture);
+        gl.uniform1i(shaderInfo.uniformLocations.sampler, 0);
+        gl.uniform1f(shaderInfo.uniformLocations.useTexture, 1);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.tire.indices);
+        gl.drawElements(gl.TRIANGLES, this.tire.vertexCount, gl.UNSIGNED_SHORT, 0);
+
+        [this.rimTop, this.rimBottom].forEach(rim => {
+            this.bindAttributes(rim, shaderInfo);
+
+            gl.uniformMatrix4fv(shaderInfo.uniformLocations.modelMatrix, false, tireMatrix.elements);
+
+            const rimNormalMatrix = new Matrix4(tireMatrix).invert().transpose();
+            gl.uniformMatrix4fv(shaderInfo.uniformLocations.normalMatrix, false, rimNormalMatrix.elements);
+
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, this.tireTexture);
+            gl.uniform1i(shaderInfo.uniformLocations.sampler, 0);
+            gl.uniform1f(shaderInfo.uniformLocations.useTexture, 1);
+
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rim.indices);
+            gl.drawElements(gl.TRIANGLES, rim.vertexCount, gl.UNSIGNED_SHORT, 0);
+        });
     }
 }

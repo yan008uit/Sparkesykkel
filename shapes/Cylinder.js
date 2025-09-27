@@ -23,7 +23,8 @@ export class Cylinder {
 
             positions.push(x, 0.5, z, x, -0.5, z);
             normals.push(x, 0, z, x, 0, z);
-            textureCoordinates.push(i / slices, 0, i / slices, 1);
+            const u = 0.1 + (0.8 * i / slices);
+            textureCoordinates.push(u, 0.8, u, 0.2);
         }
 
         for (let i = 0; i < slices; i++) {
