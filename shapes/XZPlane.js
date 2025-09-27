@@ -47,12 +47,15 @@ export class XZPlane {
         // As the XZ plane does not use all shader attributes, some are disabled to avoid errors.
         if (vertexNormal !== -1 && vertexColor !== undefined) {
             gl.disableVertexAttribArray(vertexNormal);
+            gl.vertexAttrib3f(vertexNormal, 0, 1, 0);
         }
         if (textureCoordinates !== -1 && textureCoordinates !== undefined) {
             gl.disableVertexAttribArray(textureCoordinates);
+            gl.vertexAttrib2f(textureCoordinates, 0, 0)
         }
         if (vertexColor !== -1 && vertexColor !== undefined) {
             gl.disableVertexAttribArray(vertexColor);
+            gl.vertexAttrib4f(vertexColor, this.color[0], this.color[1], this.color[2], this.color[3]);
         }
 
         // Position attribute

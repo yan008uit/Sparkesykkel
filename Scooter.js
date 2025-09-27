@@ -40,7 +40,7 @@ export function main() {
             coord: new CoordinateAxes({ gl } ),
         };
 
-        renderInfo.grid = new XZPlane({ gl }, 40, 40, 40);
+        renderInfo.grid = new XZPlane({ gl }, 40, 40, 40, [0.0, 0.0, 1.0, 1.0]);
 
         initKeyPress(renderInfo.currentlyPressedKeys);
 
