@@ -39,16 +39,30 @@ export class XZPlane {
     draw(shaderInfo, modelMatrix) {
         const gl = this.gl;
 
+        const vertexPosition = shaderInfo.attribLocations.vertexPosition;
+        const vertexNormal = shaderInfo.attribLocations.vertexNormal;
+        const textureCoordinates = shaderInfo.attribLocations.textureCoordinates;
+        const vertexColor  = shaderInfo.attribLocations.vertexColor;
+
+        // As the XZ plane does not use all shader attributes, some are disabled to avoid errors.
+        if (vertexNormal !== -1 && vertexColor !== undefined) {
+            gl.disableVertexAttribArray(vertexNormal);
+        }
+        if (textureCoordinates !== -1 && textureCoordinates !== undefined) {
+            gl.disableVertexAttribArray(textureCoordinates);
+        }
+        if (vertexColor !== -1 && vertexColor !== undefined) {
+            gl.disableVertexAttribArray(vertexColor);
+        }
+
         // Position attribute
         gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer);
-        gl.vertexAttribPointer(shaderInfo.attribLocations.vertexPosition, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shaderInfo.attribLocations.vertexPosition);
+        gl.vertexAttribPointer(vertexPosition, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(vertexPosition);
 
+        // Setting color and texture
         gl.uniform1i(shaderInfo.uniformLocations.useTexture, 0);
-        gl.uniform4f(
-            shaderInfo.uniformLocations.fragmentColor,
-            this.color[0], this.color[1], this.color[2], this.color[3]
-        );
+        gl.uniform4f(shaderInfo.uniformLocations.fragmentColor, this.color[0], this.color[1], this.color[2], this.color[3]);
 
         gl.uniformMatrix4fv(shaderInfo.uniformLocations.modelMatrix, false, modelMatrix.elements);
         gl.drawArrays(gl.LINES, 0, this.vertexCount);
