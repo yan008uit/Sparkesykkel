@@ -213,6 +213,7 @@ function drawScooter(renderInfo, camera){
     normalMatrix.transpose();
     gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.vCylinder.draw(renderInfo.shaderInfo, modelMatrix);
+
     stack.popMatrix()
 
     // Front (rotating part)
@@ -232,6 +233,7 @@ function drawScooter(renderInfo, camera){
     normalMatrix.transpose();
     gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.vCylinder.draw(renderInfo.shaderInfo, modelMatrix);
+
     stack.popMatrix();
 
     // Horizontal cylinder (steering bar)
@@ -245,6 +247,7 @@ function drawScooter(renderInfo, camera){
     normalMatrix.transpose();
     gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
+
     stack.popMatrix();
 
     // Left handle
@@ -258,6 +261,7 @@ function drawScooter(renderInfo, camera){
     normalMatrix.transpose();
     gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
+
     stack.popMatrix();
 
     // Right handle
@@ -271,6 +275,7 @@ function drawScooter(renderInfo, camera){
     normalMatrix.transpose();
     gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.hCylinder.draw(renderInfo.shaderInfo, modelMatrix);
+
     stack.popMatrix();
 
     // Front wheel axis cylinder
@@ -283,6 +288,7 @@ function drawScooter(renderInfo, camera){
     normalMatrix.transpose();
     gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     renderInfo.vCylinder.draw(renderInfo.shaderInfo, modelMatrix);
+
     stack.popMatrix();
 
     // Front wheel
@@ -311,6 +317,7 @@ function drawScooter(renderInfo, camera){
     gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     const supportArm = new Cube(renderInfo, renderInfo.textures.metal);
     supportArm.draw(renderInfo.shaderInfo, modelMatrix);
+
     stack.popMatrix();
 
     // Rear wheel support arm (h)
@@ -325,6 +332,7 @@ function drawScooter(renderInfo, camera){
     gl.uniformMatrix4fv(shader.uniformLocations.normalMatrix, false, normalMatrix.elements);
     const supportArm2 = new Cube(renderInfo, renderInfo.textures.metal);
     supportArm2.draw(renderInfo.shaderInfo, modelMatrix);
+
     stack.popMatrix()
 
     // Rear wheel
