@@ -176,7 +176,9 @@ function drawScooter(renderInfo, camera){
     // Coordinate system
     const coordModel = new Matrix4();
     coordModel.setIdentity();
+    gl.uniform1i(shader.uniformLocations.useTexture, 0);
     renderInfo.coord.draw(renderInfo.shaderInfo, coordModel);
+
     gl.disableVertexAttribArray(shader.attribLocations.vertexColor);
 
     const normalMatrix = new Matrix4();
